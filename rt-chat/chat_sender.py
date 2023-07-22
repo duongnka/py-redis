@@ -1,5 +1,6 @@
 import redis, time, threading
 from datetime import datetime
+from colorama import init, Fore
 
 # Redis connection
 redis_host = 'localhost'
@@ -8,14 +9,7 @@ redis_client = redis.StrictRedis(host=redis_host, port=redis_port, decode_respon
 
 # Chat Room Names
 chat_rooms = ['Chat Room 1', 'Chat Room 2', 'Chat Room 3']
-
-def handle_messages(room):
-    pubsub = redis_client.pubsub()
-    pubsub.subscribe(room)
-
-    for message in pubsub.listen():
-        if message['type'] == 'message':
-            print(f"[{room}] {message['data']}")
+init(autoreset=True)
 
 def send_message(room, user_name):
 
@@ -23,7 +17,7 @@ def send_message(room, user_name):
 
     # Format the date and time in a beautiful way
     while True:
-        message = input(f"Enter your message for [{room}]: ")
+        message = input(f"{Fore.CYAN}Enter your message for [{room}]: {Fore.RESET}")
         current_datetime = datetime.now().strftime("%A, %d %B %Y %I:%M %p")
 
         redis_client.publish(room, f"[{current_datetime}-{user_name}]\t{message}")
@@ -46,10 +40,6 @@ def main():
     if 1 <= room_choice <= len(chat_rooms):
         selected_room = chat_rooms[room_choice - 1]
         join_chat_room(username, selected_room)
-
-        # Start message handling thread
-        message_thread = threading.Thread(target=handle_messages, args=(selected_room,), daemon=True)
-        message_thread.start()
 
         # Start message sending loop
         send_thread = threading.Thread(target=send_message, args=(selected_room, username), daemon=True)
