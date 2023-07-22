@@ -17,7 +17,11 @@ def handle_messages(room):
 
     for message in pubsub.listen():
         if message['type'] == 'message':
-            print(f"{Fore.GREEN}[{room}] {message['data']}{Fore.RESET}")
+            message_splitted = message['data'].split("\n")
+            user_info = message_splitted[0]
+            content = '\n'.join(message_splitted[1:])
+            print(f"{Fore.GREEN}[{room}] {user_info}{Fore.RESET}")
+            print(f"{Fore.WHITE}{content}{Fore.RESET}")
 
 def main():
     print("Available chat rooms:")
@@ -27,7 +31,8 @@ def main():
     room_choice = int(input("Enter the number of the chat room you want to join: "))
     if 1 <= room_choice <= len(chat_rooms):
         selected_room = chat_rooms[room_choice - 1]
-        # Start message handling thread
+        print(f"Welcome to {selected_room}!")
+        print(f"Waiting for incomming message...")
         message_thread = threading.Thread(target=handle_messages, args=(selected_room,), daemon=True)
         message_thread.start()
 

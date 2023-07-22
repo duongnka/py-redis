@@ -20,7 +20,7 @@ def send_message(room, user_name):
         message = input(f"{Fore.CYAN}Enter your message for [{room}]: {Fore.RESET}")
         current_datetime = datetime.now().strftime("%A, %d %B %Y %I:%M %p")
 
-        redis_client.publish(room, f"[{current_datetime}-{user_name}]\t{message}")
+        redis_client.publish(room, f"[{current_datetime}-{user_name}]\n{message}")
 
 def join_chat_room(username, room):
     redis_client.sadd(f"users:{room}", username)
