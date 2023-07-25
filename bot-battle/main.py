@@ -21,16 +21,94 @@ class LeaderboardEntry:
         self.bot = bot
         self.wins = wins
 
+class RedisUtils:
+    def __init__(self):
+        self.redis_client = redis.StrictRedis(host='localhost', port=6379, db=0)
+
+    def save_bot_to_redis(self, bot):
+        key = self.get_bot_key(bot.bot_id)
+        self.redis_client.hset(key, "name", bot.name)
+        self.redis_client.hset(key, "health", bot.health)
+        self.redis_client.hset(key, "attack_power", bot.attack_power)
+        self.redis_client.hset(key, "wins", bot.wins)
+
+    def get_bot_from_redis(self, bot_key):
+        bot_data = self.redis_client.hgetall(bot_key)
+        bot_id = bot_key.decode('utf-8').split(":")[1]
+        return Bot(  bot_id
+                   , bot_data[b'name'].decode('utf-8')
+                   , int(bot_data[b'health'])
+                   , int(bot_data[b'attack_power']))
+
+    def get_bot_key(self, bot_id):
+        return f"bot:{bot_id}"
+
+    def get_all_bot_keys(self):
+        return self.redis_client.keys("bot:*")
+    
+    def get_all_match_keys(self):
+        return self.redis_client.keys("match:*")
+    
+    def reset_leaderboard(self):
+        self.redis_client.delete("leaderboard")
+
+    def reset_bots(self):
+        bot_keys_to_delete = self.get_all_bot_keys()
+        if bot_keys_to_delete:
+            self.redis_client.delete(*bot_keys_to_delete)
+    
+    def reset_matches(self):
+        match_keys_to_delete = self.get_all_match_keys()
+        if match_keys_to_delete:
+            self.redis_client.delete(*match_keys_to_delete)
+
+    def reset_redis(self):
+        self.reset_leaderboard()
+        self.reset_matches()
+        self.reset_bots()
+    
+    def get_next_match_id(self):
+        return self.redis_client.incr("next_match_id")
+    
+    def save_match_to_redis(self, match):
+        key = f"match:{match.match_id}"
+        self.redis_client.hset(key, 'bot_a_id', match.bot_a.bot_id)
+        self.redis_client.hset(key, 'bot_b_id', match.bot_b.bot_id)
+        self.redis_client.hset(key, 'winner_id', match.winner.bot_id if match.winner else 0)
+
+    def update_leaderboard_for_bot(self, bot):
+        self.redis_client.zadd("leaderboard", {bot.name: bot.wins})
+
+    def update_leaderboard(self):
+        bot_keys = self.get_all_bot_keys()
+        for bot_key in bot_keys:
+            bot = self.get_bot_from_redis(bot_key.decode("utf-8"))
+            self.update_leaderboard(bot)
+
+    def display_leaderboard(self, top = 10):
+        print("Leaderboard:")
+        print("Rank\tBot Name\tWins")
+        leaderboard_data = self.redis_client.zrevrange("leaderboard", 0, -1, withscores=True)
+        rank = 1
+        for bot_name, wins in leaderboard_data[:top]:
+            print(f"{rank}\t{bot_name.decode('utf-8')}\t\t{int(wins)}")
+            rank +=1
+
 # Define logic game
 class BotBattleGame:
     def __init__(self):
-        self.redis_client = redis.StrictRedis(host='localhost', port=6379, db=0)
-        self.bots = []
-        self.matches = []
-        self.leaderboard = []
+        self.redis_utils = RedisUtils()
 
-    def add_bot(self, bot):
-        self.bots.append(bot)
+    def save_bot(self, bot):
+        self.redis_utils.save_bot_to_redis(bot)
+
+    def generate_random_name(self):
+        letters = string.ascii_uppercase
+        return ''.join(random.choice(letters) for i in range(4))
+
+    def add_random_bots_with_reset_redis(self, num_bots):
+        self.redis_utils.reset_redis()
+        self.add_random_bots(num_bots)
 
     def add_random_bots(self, num_bots):
         for i in range(num_bots):
@@ -39,37 +117,34 @@ class BotBattleGame:
             health = random.randint(80, 120)
             attack_power = random.randint(10, 20)
             new_bot = Bot(bot_id, name, health, attack_power)
-            self.add_bot(new_bot)
+            self.save_bot(new_bot)
 
-            # Save bot data to Redis
-            self.save_bot_to_redis(new_bot)
+    def get_bot_keys(self):
+        return self.redis_utils.get_all_bot_keys()
+    
+    def get_bot(self, bot_key):
+        return self.redis_utils.get_bot_from_redis(bot_key)
+    
+    def get_next_match_id(self):
+        return self.redis_utils.get_next_match_id()
 
-    def generate_random_name(self):
-        letters = string.ascii_uppercase
-        return ''.join(random.choice(letters) for i in range(4))
-
-    def save_bot_to_redis(self, bot):
-        key = f"bot:{bot.bot_id}"
-        self.redis_client.hset(key, "name", bot.name)
-        self.redis_client.hset(key, "health", bot.health)
-        self.redis_client.hset(key, "attack_power", bot.attack_power)
-        self.redis_client.hset(key, "wins", bot.wins)
-
-    def get_bot_from_redis(self, bot_id):
-        key = f"bot:{bot_id}"
-        bot_data = self.redis_client.hgetall(key)
-        return Bot(bot_id, bot_data[b'name'].decode('utf-8'), int(bot_data[b'health']), int(bot_data[b'attack_power']))
+    def save_match(self, match):
+        self.redis_utils.save_match_to_redis(match)
 
 
     def start_match(self):
-        if len(self.bots) < 2:
+        bot_keys = self.get_bot_keys()
+        if len(bot_keys) < 2:
             print("Not enough bots to start a match.")
             return
 
-        bot_a, bot_b = random.sample(self.bots, 2)
-        match_id = len(self.matches) + 1
+        bot_a_key, bot_b_key = random.sample(bot_keys, 2)
+        bot_a = self.get_bot(bot_a_key)
+        bot_b = self.get_bot(bot_b_key)
+
+        match_id = self.get_next_match_id()
         new_match = Match(match_id, bot_a, bot_b)
-        self.matches.append(new_match)
+        self.save_match(new_match)
         self.simulate_battle(new_match)
 
     def simulate_battle(self, match):
@@ -86,26 +161,25 @@ class BotBattleGame:
             match.winner = bot_b
             bot_b.wins += 1
             bot_b.health = bot_b_health
-            self.redis_client.zadd("leaderboard", {bot_b.name: bot_b.wins})
+            self.save_bot(bot_b)
+            self.update_leaderboard_for_bot(bot_b)
         else:
             match.winner = bot_a
             bot_a.wins += 1
             bot_a.health = bot_a_health
-            self.redis_client.zadd("leaderboard", {bot_a.name: bot_a.wins})
+            self.save_bot(bot_a)
+            self.update_leaderboard_for_bot(bot_a)
+        
+        self.save_match(match)
 
     def update_leaderboard(self):
-        # Create or update the leaderboard in Redis Sorted Set
-        for bot in self.bots:
-            self.redis_client.zadd("leaderboard", {bot.name: bot.wins})
+        self.redis_utils.update_leaderboard()
+    
+    def update_leaderboard_for_bot(self, bot):
+        self.redis_utils.update_leaderboard_for_bot(bot)
 
     def display_leaderboard(self):
-        print("Leaderboard:")
-        print("Rank\tBot Name\tWins")
-        leaderboard_data = self.redis_client.zrevrange("leaderboard", 0, -1, withscores=True)
-        rank = 1
-        for bot_name, wins in leaderboard_data[:10]:
-            print(f"{rank}\t{bot_name.decode('utf-8')}\t\t{int(wins)}")
-            rank += 1
+        self.redis_utils.display_leaderboard()
 
 def main():
     game = BotBattleGame()
