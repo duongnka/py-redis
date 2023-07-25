@@ -2,12 +2,12 @@ import random, string, redis, sys
 
 # Define entities
 class Bot:
-    def __init__(self, bot_id, name, health, attack_power):
+    def __init__(self, bot_id, name, health, attack_power, wins=0):
         self.bot_id = bot_id
         self.name = name
         self.health = health
         self.attack_power = attack_power
-        self.wins = 0
+        self.wins = wins
 
 class Match:
     def __init__(self, match_id, bot_a, bot_b):
@@ -38,7 +38,8 @@ class RedisUtils:
         return Bot(  bot_id
                    , bot_data[b'name'].decode('utf-8')
                    , int(bot_data[b'health'])
-                   , int(bot_data[b'attack_power']))
+                   , int(bot_data[b'attack_power'])
+                   , int(bot_data[b'wins']))
 
     def get_bot_key(self, bot_id):
         return f"bot:{bot_id}"
@@ -148,29 +149,34 @@ class BotBattleGame:
         self.simulate_battle(new_match)
 
     def simulate_battle(self, match):
+        print("Start match...")
         bot_a = match.bot_a
         bot_b = match.bot_b
         bot_a_health = bot_a.health
         bot_b_health = bot_b.health
-
+        print(f"'{bot_a.name}' VS '{bot_b.name}'")
         while bot_a_health > 0 and bot_b_health > 0:
             bot_a_health -= bot_b.attack_power
             bot_b_health -= bot_a.attack_power
-
+        print("Combatting...")
         if bot_a_health <= 0:
             match.winner = bot_b
             bot_b.wins += 1
             bot_b.health = bot_b_health
             self.save_bot(bot_b)
             self.update_leaderboard_for_bot(bot_b)
+            print(f"'{bot_b.name}' won!!!")
         else:
             match.winner = bot_a
             bot_a.wins += 1
             bot_a.health = bot_a_health
             self.save_bot(bot_a)
             self.update_leaderboard_for_bot(bot_a)
+            print(f"'{bot_a.name}' won!!!")
         
         self.save_match(match)
+        print(f"Match end...")
+        print("=============\n\n")
 
     def update_leaderboard(self):
         self.redis_utils.update_leaderboard()
@@ -180,18 +186,3 @@ class BotBattleGame:
 
     def display_leaderboard(self):
         self.redis_utils.display_leaderboard()
-
-def main():
-    game = BotBattleGame()
-
-    num_bots = 100 if len(sys.argv) == 1 else int(sys.argv[1])
-
-    game.add_random_bots(num_bots)
-
-    for _ in range(num_bots):
-        game.start_match()
-
-    game.display_leaderboard()
-
-if __name__ == "__main__":
-    main()
