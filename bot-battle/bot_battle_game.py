@@ -86,14 +86,20 @@ class RedisUtils:
             bot = self.get_bot_from_redis(bot_key.decode("utf-8"))
             self.update_leaderboard(bot)
 
-    def display_leaderboard(self, top = 10):
-        print("Leaderboard:")
-        print("Rank\tBot Name\tWins")
-        leaderboard_data = self.redis_client.zrevrange("leaderboard", 0, -1, withscores=True)
-        rank = 1
-        for bot_name, wins in leaderboard_data[:top]:
-            print(f"{rank}\t{bot_name.decode('utf-8')}\t\t{int(wins)}")
-            rank +=1
+    def display_leaderboard(self, top = 10, refresh_interval=1):
+        while True:
+            import os, time
+            os.system("cls" if os.name == "nt" else "clear")
+
+            print(f"Leaderboard Top {top}:")
+            print("Rank\tBot Name\tWins")
+            leaderboard_data = self.redis_client.zrevrange("leaderboard", 0, -1, withscores=True)
+            rank = 1
+            for bot_name, wins in leaderboard_data[:top]:
+                print(f"{rank}\t{bot_name.decode('utf-8')}\t\t{int(wins)}")
+                rank +=1
+
+            time.sleep(refresh_interval)
 
 # Define logic game
 class BotBattleGame:
@@ -184,5 +190,5 @@ class BotBattleGame:
     def update_leaderboard_for_bot(self, bot):
         self.redis_utils.update_leaderboard_for_bot(bot)
 
-    def display_leaderboard(self):
-        self.redis_utils.display_leaderboard()
+    def display_leaderboard(self, refresh_interval=1):
+        self.redis_utils.display_leaderboard(refresh_interval=refresh_interval)

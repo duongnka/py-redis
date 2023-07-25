@@ -1,9 +1,8 @@
 from bot_battle_game import *
-import time
+
 def main():
     game = BotBattleGame()
-    while True:
-        game.display_leaderboard()
-        time.sleep(1)
+    game.display_leaderboard(refresh_interval=5)
+
 if __name__ == "__main__":
     main()
