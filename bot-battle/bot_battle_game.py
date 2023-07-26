@@ -1,5 +1,6 @@
 import random, string, redis, sys
-
+from colorama import init, Fore
+init(autoreset=True)
 # Define entities
 class Bot:
     def __init__(self, bot_id, name, health, attack_power, wins=0):
@@ -91,8 +92,8 @@ class RedisUtils:
             import os, time
             os.system("cls" if os.name == "nt" else "clear")
 
-            print(f"Leaderboard Top {top}:")
-            print("Rank\tBot Name\tWins")
+            print(f"{Fore.GREEN}Leaderboard top {top}:")
+            print(f"{Fore.YELLOW}Rank\t{Fore.YELLOW}Bot Name\t{Fore.YELLOW}Wins")
             leaderboard_data = self.redis_client.zrevrange("leaderboard", 0, -1, withscores=True)
             rank = 1
             for bot_name, wins in leaderboard_data[:top]:
