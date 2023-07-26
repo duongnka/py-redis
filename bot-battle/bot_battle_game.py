@@ -28,10 +28,13 @@ class RedisUtils:
 
     def save_bot_to_redis(self, bot):
         key = self.get_bot_key(bot.bot_id)
-        self.redis_client.hset(key, "name", bot.name)
-        self.redis_client.hset(key, "health", bot.health)
-        self.redis_client.hset(key, "attack_power", bot.attack_power)
-        self.redis_client.hset(key, "wins", bot.wins)
+        bot_info = {
+            "name": bot.name,
+            "health": bot.health,
+            "attack_power": bot.attack_power,
+            "wins": bot.wins
+        }
+        self.redis_client.hmset(key, bot_info)
 
     def get_bot_from_redis(self, bot_key):
         bot_data = self.redis_client.hgetall(bot_key)
