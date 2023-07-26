@@ -9,13 +9,28 @@ class Bot:
         self.health = health
         self.attack_power = attack_power
         self.wins = wins
+    
+    def to_dict(self):
+        return {
+            "name": self.name,
+            "health": self.health,
+            "attack_power": self.attack_power,
+            "wins": self.wins
+        }
 
 class Match:
-    def __init__(self, match_id, bot_a, bot_b):
+    def __init__(self, match_id, bot_a: Bot, bot_b: Bot, winner: Bot = None):
         self.match_id = match_id
         self.bot_a = bot_a
         self.bot_b = bot_b
-        self.winner = None
+        self.winner = winner
+    
+    def to_dict(self):
+        return {
+            "bot_a_id": self.bot_a.bot_id,
+            "bot_b_id": self.bot_b.bot_id,
+            "winner_id": self.winner.bot_id if self.winner else 0
+        }
 
 class LeaderboardEntry:
     def __init__(self, bot, wins):
@@ -23,18 +38,12 @@ class LeaderboardEntry:
         self.wins = wins
 
 class RedisUtils:
-    def __init__(self):
-        self.redis_client = redis.StrictRedis(host='localhost', port=6379, db=0)
+    def __init__(self, host='localhost', port=6379, db=0):
+        self.redis_client = redis.StrictRedis(host=host, port=port, db=db)
 
-    def save_bot_to_redis(self, bot):
+    def save_bot_to_redis(self, bot: Bot):
         key = self.get_bot_key(bot.bot_id)
-        bot_info = {
-            "name": bot.name,
-            "health": bot.health,
-            "attack_power": bot.attack_power,
-            "wins": bot.wins
-        }
-        self.redis_client.hmset(key, bot_info)
+        self.redis_client.hmset(key, bot.to_dict())
 
     def get_bot_from_redis(self, bot_key):
         bot_data = self.redis_client.hgetall(bot_key)
@@ -75,11 +84,9 @@ class RedisUtils:
     def get_next_match_id(self):
         return self.redis_client.incr("next_match_id")
     
-    def save_match_to_redis(self, match):
+    def save_match_to_redis(self, match: Match):
         key = f"match:{match.match_id}"
-        self.redis_client.hset(key, 'bot_a_id', match.bot_a.bot_id)
-        self.redis_client.hset(key, 'bot_b_id', match.bot_b.bot_id)
-        self.redis_client.hset(key, 'winner_id', match.winner.bot_id if match.winner else 0)
+        self.redis_client.hmset(key, match.to_dict())
 
     def update_leaderboard_for_bot(self, bot):
         self.redis_client.zadd("leaderboard", {bot.name: bot.wins})
@@ -164,7 +171,7 @@ class BotBattleGame:
         bot_b = match.bot_b
         bot_a_health = bot_a.health
         bot_b_health = bot_b.health
-        print(f"'{bot_a.name}' VS '{bot_b.name}'")
+        print(f"'{bot_a.name}' vs '{bot_b.name}'")
         while bot_a_health > 0 and bot_b_health > 0:
             bot_a_health -= bot_b.attack_power
             bot_b_health -= bot_a.attack_power
