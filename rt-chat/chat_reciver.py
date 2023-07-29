@@ -3,9 +3,17 @@ from datetime import datetime
 from colorama import init, Fore
 
 # Redis connection
-redis_host = 'localhost'
-redis_port = 6379
-redis_client = redis.StrictRedis(host=redis_host, port=redis_port, decode_responses=True)
+sentinel_addresses = [
+            ('localhost', 26379), 
+            ('localhost', 26380),
+            ('localhost', 26381),
+        ]
+sentinel = redis.sentinel.Sentinel(
+    sentinel_addresses,
+    socket_timeout=0.1,
+)
+master_host, master_port = sentinel.discover_master('redis-master')
+redis_client = redis.StrictRedis(host=master_host, port=master_port, decode_responses=True)
 
 # Chat Room Names
 chat_rooms = ['Chat Room 1', 'Chat Room 2', 'Chat Room 3']
