@@ -49,7 +49,7 @@ class RedisUtils:
             socket_timeout=0.1,
         )
         master_host, master_port = sentinel.discover_master('redis-master')
-        self.redis_client = redis.StrictRedis(host=master_host, port=master_port, db=db)
+        self.redis_client = redis.StrictRedis(host=master_host, port=master_port, db=0)
 
     def save_bot_to_redis(self, bot: Bot):
         key = self.get_bot_key(bot.bot_id)
