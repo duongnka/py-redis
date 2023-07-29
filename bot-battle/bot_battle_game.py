@@ -38,8 +38,18 @@ class LeaderboardEntry:
         self.wins = wins
 
 class RedisUtils:
-    def __init__(self, host='localhost', port=6379, db=0):
-        self.redis_client = redis.StrictRedis(host=host, port=port, db=db)
+    def __init__(self):
+        sentinel_addresses = [
+            ('localhost', 26379), 
+            ('localhost', 26380),
+            ('localhost', 26381),
+        ]
+        sentinel = redis.sentinel.Sentinel(
+            sentinel_addresses,
+            socket_timeout=0.1,
+        )
+        master_host, master_port = sentinel.discover_master('redis-master')
+        self.redis_client = redis.StrictRedis(host=master_host, port=master_port, db=db)
 
     def save_bot_to_redis(self, bot: Bot):
         key = self.get_bot_key(bot.bot_id)
