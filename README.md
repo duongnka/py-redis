@@ -2,7 +2,7 @@
 where I apply redis into the application
 
 
-# Redis cluster Guideline
+# Redis Cluster Guideline
 Following the below steps to build a redis cluster on mac
 ## 1. Install Redis with brew
     brew --version
@@ -48,3 +48,68 @@ Or we can connect to a master node then using the command to show the cluster in
     # Assume port 7001 is a master node
     redis-cli -h localhost -p 7001 
     cluster nodes
+
+# Redis Sentinels Guideline
+Make sure you have redis installed on your mac
+
+## 1. Preparation
+    mkdir redis-sentinel
+    cd redis-sentinel
+    mkdir redis-master-data redis-replica1-data redis-replica2-data redis-sentinel-data
+Now create redis config file for a master and 2 replicas for this sentinel
+
+### 1.1 Master node
+    vim redis-master.conf
+    # copy and paste below config
+    port 6379
+    bind 127.0.0.1
+    deamonize yes
+    dir redis-master-data
+    logfile "redis-master.log"
+
+### 1.2 Replica 1
+    vim redis-replica1.conf
+    # copy and paste below config
+    port 6380
+    bind 127.0.0.1
+    deamonize yes
+    dir redis-replica1-data
+    logfile "redis-replica1.log"
+    replicaof 127.0.0.1 6379
+
+### 1.3 Replica 2
+    vim redis-replica2.conf
+    # copy and paste below config
+    port 6381
+    bind 127.0.0.1
+    deamonize yes
+    dir redis-replica2-data
+    logfile "redis-replica2.log"
+    replicaof 127.0.0.1 6379
+
+### 1.4 Configure Redis Sentinel
+Create a separate `sentinel1.conf`, `sentinel2.conf`, `sentinel3.conf` file for the Redis Sentinel and configure it as follows:
+
+    # Replace port 26379 for sentinel 1
+    # Replace port 26380 for sentinel 2
+    # Replace port 26381 for sentinel 3
+    port 26379
+    sentinel bind 127.0.0.1
+    dir redis-sentinel-data
+    logfile "redis-sentinel.log"
+    sentinel monitor redis-master 127.0.0.1 6379 2
+
+## 2. Start instances
+Run follow commands to start Master, Replica 1 and Replica 2 instances
+
+    redis-server redis-master.conf
+    redis-server redis-replica1.conf
+    redis-server redis-replica2.conf
+
+Now we start 3 sentinel instances, run following comands
+
+    redis-sentinel sentinel1.conf
+    redis-sentinel sentinel2.conf
+    redis-sentinel sentinel3.conf
+
+Now you successfully create a Redis Sentinel with 3 nodes - one Master and two Replicas - and 3 Sentinel instances to monitor the Master node and handle failover.
