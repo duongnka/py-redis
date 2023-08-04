@@ -1,19 +1,12 @@
-import redis, time, threading
+import sys
+sys.path.append('..')
+
+import time, threading
 from datetime import datetime
 from colorama import init, Fore
+from utils.redis_utils import * 
 
-# Redis connection
-sentinel_addresses = [
-            ('localhost', 26379), 
-            ('localhost', 26380),
-            ('localhost', 26381),
-        ]
-sentinel = redis.sentinel.Sentinel(
-    sentinel_addresses,
-    socket_timeout=0.1,
-)
-master_host, master_port = sentinel.discover_master('redis-master')
-redis_client = redis.StrictRedis(host=master_host, port=master_port, decode_responses=True)
+redis_client = RedisUtils(RedisType.CLUSTER).redis_client
 
 # Chat Room Names
 chat_rooms = ['Chat Room 1', 'Chat Room 2', 'Chat Room 3']
@@ -25,7 +18,7 @@ def handle_messages(room):
 
     for message in pubsub.listen():
         if message['type'] == 'message':
-            message_splitted = message['data'].split("\n")
+            message_splitted = message['data'].decode('utf-8').split("\n")
             user_info = message_splitted[0]
             content = '\n'.join(message_splitted[1:])
             print(f"{Fore.GREEN}[{room}] {user_info}{Fore.RESET}")

@@ -1,5 +1,10 @@
+import sys 
+sys.path.append("..")
+
 import random, string, redis, sys
 from colorama import init, Fore
+from utils.redis_utils import *
+
 init(autoreset=True)
 # Define entities
 class Bot:
@@ -37,19 +42,9 @@ class LeaderboardEntry:
         self.bot = bot
         self.wins = wins
 
-class RedisUtils:
-    def __init__(self):
-        sentinel_addresses = [
-            ('localhost', 26379), 
-            ('localhost', 26380),
-            ('localhost', 26381),
-        ]
-        sentinel = redis.sentinel.Sentinel(
-            sentinel_addresses,
-            socket_timeout=0.1,
-        )
-        master_host, master_port = sentinel.discover_master('redis-master')
-        self.redis_client = redis.StrictRedis(host=master_host, port=master_port, db=0)
+class BottleBattleUtils:
+    def __init__(self, redis_type = RedisType.STANDALONE):
+        self.redis_client = RedisUtils(redis_type=redis_type).redis_client
 
     def save_bot_to_redis(self, bot: Bot):
         key = self.get_bot_key(bot.bot_id)
